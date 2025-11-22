@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistente para Diabetes Tipo 1</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🩺 Asistente Inteligente para Diabetes Tipo 1</h1>
+            <p>Selecciona la dieta recomendada por tu nutricionista</p>
+            
+            <div class="dietas-container">
+                <button onclick="abrirModalDieta(1200)" class="btn-dieta-header">📋 Dieta 1200 Kcal/día</button>
+                <button onclick="abrirModalDieta(1400)" class="btn-dieta-header">📋 Dieta 1400 Kcal/día</button>
+                <button onclick="abrirModalDieta(1600)" class="btn-dieta-header">📋 Dieta 1600 Kcal/día</button>
+                <button onclick="abrirModalDieta(1800)" class="btn-dieta-header">📋 Dieta 1800 Kcal/día</button>
+            </div>
+            
+            <div id="dieta-seleccionada-info" class="dieta-info-header" style="display: none;">
+                <p><strong>Dieta seleccionada:</strong> <span id="dieta-nombre"></span></p>
+                <p><strong>Tiempo de comida:</strong> <span id="tiempo-nombre"></span></p>
+                <p><strong>Carbohidratos permitidos:</strong> <span id="carbohidratos-permitidos"></span> g</p>
+            </div>
+        </header>
+
+        <main>
+            <!-- Sección de Categorías -->
+            <section class="categorias-section">
+                <h2>Categorías de Alimentos</h2>
+                <div id="categorias-container" class="categorias-grid">
+                    <!-- Las categorías se cargarán dinámicamente -->
+                </div>
+            </section>
+
+            <!-- Sección de Alimentos -->
+            <section class="alimentos-section" id="alimentos-section" style="display: none;">
+                <div class="alimentos-header">
+                    <h2 id="categoria-titulo">Alimentos</h2>
+                    <button onclick="volverACategorias()" class="btn-volver">← Volver a Categorías</button>
+                </div>
+                <div id="alimentos-container" class="alimentos-list">
+                    <!-- Los alimentos se cargarán dinámicamente -->
+                </div>
+            </section>
+
+            <!-- Resumen de Selección -->
+            <section class="resumen-section">
+                <h2>📊 Resumen de Carbohidratos</h2>
+                <div id="alimentos-seleccionados" class="alimentos-seleccionados-list">
+                    <p class="texto-vacio">No has seleccionado ningún alimento</p>
+                </div>
+                <div class="total-carbohidratos">
+                    <h3>Total de Carbohidratos: <span id="total-carbohidratos">0.0</span> g</h3>
+                    <div id="alerta-carbohidratos" class="alerta-carbohidratos" style="display: none;"></div>
+                    <div class="botones-container">
+                        <button onclick="limpiarSeleccion()" class="btn-limpiar">Limpiar Selección</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal para Dietas -->
+    <div id="modal-dieta" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cerrarModalDieta()">&times;</span>
+            <div id="contenido-dieta"></div>
+            
+            <div class="tiempo-comida-selector">
+                <label for="tiempo-comida">
+                    <strong style="color: #e74c3c;">Selecciona un Tiempo de Comida:</strong>
+                </label>
+                <select id="tiempo-comida" class="select-tiempo">
+                    <option value="">-- Seleccionar --</option>
+                    <option value="desayuno">Desayuno</option>
+                    <option value="almuerzo">Almuerzo</option>
+                    <option value="cena">Cena</option>
+                </select>
+            </div>
+            
+            <div class="modal-botones">
+                <button onclick="aceptarDieta()" class="btn-modal btn-aceptar">Aceptar</button>
+                <button onclick="cancelarDieta()" class="btn-modal btn-cancelar">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Alerta de Exceso de Carbohidratos -->
+    <div id="modal-alerta-exceso" class="modal modal-alerta">
+        <div class="modal-content modal-alerta-content">
+            <div class="alerta-icono">⚠️</div>
+            <h2 class="alerta-titulo">¡Atención!</h2>
+            <p class="alerta-mensaje">Se ha excedido la cantidad de carbohidratos permitida</p>
+            <div class="alerta-detalles">
+                <p><strong>Carbohidratos permitidos:</strong> <span id="alerta-permitidos">0</span> g</p>
+                <p><strong>Carbohidratos actuales:</strong> <span id="alerta-actuales">0</span> g</p>
+                <p><strong>Exceso:</strong> <span id="alerta-exceso">0</span> g</p>
+            </div>
+            <button onclick="cerrarModalAlerta()" class="btn-modal btn-alerta-ok">Entendido</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
