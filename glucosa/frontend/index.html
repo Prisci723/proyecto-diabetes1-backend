@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predicción de Glucosa - Diabetes Tipo 1</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🩺 Predicción de Glucosa</h1>
+                <p class="subtitle">Sistema inteligente para diabetes tipo 1</p>
+            </div>
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot"></span>
+                <span class="status-text">Conectando...</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel: Input Section -->
+            <div class="panel input-panel">
+                <h2 class="panel-title">📊 Datos Históricos</h2>
+                <p class="panel-description">Ingresa las últimas 12 lecturas de glucosa (60 minutos)</p>
+                
+                <div id="historicalReadings" class="readings-container">
+                    <!-- Se generará dinámicamente con JavaScript -->
+                </div>
+
+                <button class="btn btn-secondary" onclick="loadSampleData()">
+                    📥 Cargar Datos de Glucosa
+                </button>
+
+                <hr class="divider">
+
+                <h2 class="panel-title">🎯 Predicción Futura</h2>
+                
+                <div class="prediction-controls">
+                    <div class="form-group">
+                        <label for="nSteps">Horizonte de predicción:</label>
+                        <select id="nSteps" class="form-control" onchange="updateUserInputs()">
+                            <option value="6">30 minutos (6 pasos)</option>
+                            <option value="12" selected>1 hora (12 pasos)</option>
+                            <option value="18">1.5 horas (18 pasos)</option>
+                            <option value="24">2 horas (24 pasos)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h3 class="section-title">📝 Eventos Planificados</h3>
+                <p class="help-text">Ingresa comidas, insulina o ejercicio que planeas realizar</p>
+                
+                <div id="userInputsContainer" class="user-inputs-container">
+                    <!-- Se generará dinámicamente -->
+                </div>
+
+                <button class="btn btn-primary btn-large" onclick="makePrediction()">
+                    🔮 Predecir Glucosa
+                </button>
+            </div>
+
+            <!-- Right Panel: Results Section -->
+            <div class="panel results-panel">
+                <h2 class="panel-title">📈 Resultados de Predicción</h2>
+                
+                <!-- Loading State -->
+                <div id="loadingState" class="loading-state">
+                    <div class="loader"></div>
+                    <p>Calculando predicciones...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <h3>Sin predicciones aún</h3>
+                    <p>Completa los datos históricos y haz clic en "Predecir Glucosa" para ver los resultados</p>
+                </div>
+
+                <!-- Results Content -->
+                <div id="resultsContent" class="results-content" style="display: none;">
+                    <!-- Summary Cards -->
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <div class="card-label">Glucosa Actual</div>
+                            <div class="card-value" id="currentGlucose">--</div>
+                            <div class="card-unit">mg/dL</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-label">Predicción Final</div>
+                            <div class="card-value" id="finalGlucose">--</div>
+                            <div class="card-unit">mg/dL</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-label">Cambio</div>
+                            <div class="card-value" id="glucoseChange">--</div>
+                            <div class="card-unit">mg/dL</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="card-label">Tendencia</div>
+                            <div class="card-value" id="trend">--</div>
+                            <div class="card-unit"></div>
+                        </div>
+                    </div>
+
+                    <!-- Alerts -->
+                    <div id="alertsContainer" class="alerts-container">
+                        <!-- Se generará dinámicamente -->
+                    </div>
+
+                    <!-- Chart -->
+                    <div class="chart-container">
+                        <canvas id="glucoseChart"></canvas>
+                    </div>
+
+                    <!-- Predictions Table -->
+                    <div class="predictions-table-container">
+                        <h3 class="section-title">📋 Detalles de Predicción</h3>
+                        <div class="table-scroll">
+                            <table class="predictions-table" id="predictionsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Tiempo</th>
+                                        <th>Glucosa</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="predictionsTableBody">
+                                    <!-- Se generará dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Additional Stats -->
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Mínimo</span>
+                            <span class="stat-value" id="minGlucose">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Máximo</span>
+                            <span class="stat-value" id="maxGlucose">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Promedio</span>
+                            <span class="stat-value" id="avgGlucose">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Tiempo en Rango</span>
+                            <span class="stat-value" id="timeInRange">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <!-- App Script -->
+    <script src="app.js"></script>
+</body>
+</html>
