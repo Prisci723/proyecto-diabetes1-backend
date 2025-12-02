@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 class ClusteringService:
-    def __init__(self, model_path: str = "/home/priscila/Downloads/glucose_kmeans_model.pkl"):
+    def __init__(self, model_path: str = "d:/Taller1/glucose_kmeans_model.pkl"):
         self.model_path = model_path
         self.kmeans_model = None
         self.scaler = None

@@ -73,14 +73,14 @@ class PredictionRequest(BaseModel):
     glucose_value: float = Field(..., ge=2.0, le=30.0)
     carbs_g: float = Field(..., ge=0.0, le=300.0)
     has_basal_today: bool
-    meal_type: str = 'Lunch'
+    meal_type: str = 'meal_Lunch'
     hour_of_day: Optional[int] = Field(None, ge=0, le=23)
     day_of_week: Optional[int] = Field(None, ge=0, le=6)
     glucose_minutes_before: float = Field(10.0, ge=0.0, le=120.0)
 
     @validator('meal_type')
     def validate_meal_type(cls, v):
-        valid_meals = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Pre-meal', 'Post-meal']
+        valid_meals = ['meal_Breakfast', 'meal_Lunch', 'meal_Dinner', 'meal_Snack', 'meal_Pre-meal', 'meal_Post-meal', 'meal_Dinner', 'meal_Supper']
         if v not in valid_meals:
             raise ValueError(f'meal_type debe ser uno de: {valid_meals}')
         return v

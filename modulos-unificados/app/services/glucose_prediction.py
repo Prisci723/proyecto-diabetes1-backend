@@ -51,8 +51,8 @@ class GlucoseModelManager:
         self.model_config = None
         self.device = None
         self.is_loaded = False
-        self.model_path = Path(__file__).parent.parent / "backend2"
-    
+        self.model_path = Path("c:/Users/USER/taller/proyecto-diabetes1-backend/glucosa/backend")
+
     def load_model(self):
         """Cargar modelo, scaler y configuración"""
         try:
@@ -63,7 +63,7 @@ class GlucoseModelManager:
             logger.info(f"Usando device: {self.device}")
             
             # Cargar configuración
-            config_path = self.model_path / 'model_config.pkl'
+            config_path = Path("c:/Users/USER/taller/proyecto-diabetes1-backend/glucosa/backend/model_config.pkl")
             with open(config_path, 'rb') as f:
                 self.model_config = pickle.load(f)
             logger.info(f"Configuración cargada: {self.model_config}")
@@ -81,8 +81,8 @@ class GlucoseModelManager:
                 num_layers=self.model_config['num_layers'],
                 dropout=self.model_config['dropout']
             )
-            
-            model_weights_path = self.model_path / 'best_glucose_model.pth'
+
+            model_weights_path = Path('c:/Users/USER/taller/proyecto-diabetes1-backend/glucosa/backend/best_glucose_model.pth')
             self.model.load_state_dict(
                 torch.load(model_weights_path, map_location=self.device)
             )

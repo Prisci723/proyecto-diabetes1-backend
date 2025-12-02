@@ -22,9 +22,9 @@ class ChatbotManager:
         self.model_name: str = "llama3.2:3b"
         
         # Ruta al PDF (ajustar según sea necesario)
-        self.pdf_path = Path(__file__).parent.parent / "backend" / "documento_diabetes_guia.pdf"
-        
-        self.system_prompt = """Eres un asistente educativo especializado en diabetes. 
+        self.pdf_path = Path("c:/Users/USER/taller/proyecto-diabetes1-backend/documentos/documento_diabetes_guia.pdf")
+
+        self.system_prompt = """Eres un asistente educativo especializado en diabetes.
 
 IMPORTANTE:
 - NO eres médico y NO das diagnósticos médicos

@@ -41,6 +41,9 @@ def get_daily_metrics(
         raise HTTPException(400, detail=f"Insuficientes lecturas (mínimo 10, encontradas {len(readings)})")
     values = [r.value for r in readings]
     calculated_metrics = GlucoseMetricsCalculator.calculate_daily_metrics(values)
+    calculated_metrics.pop('median_glucose', None)  # ← AGREGAR ESTA LÍNEA
+    calculated_metrics.pop('min_glucose', None)  # ← AGREGAR ESTA LÍNEA
+    calculated_metrics.pop('max_glucose', None)  # ← AGREGAR ESTA LÍNEA
     db_metrics = DailyMetrics(
         patient_id=patient_id,
         date=date,

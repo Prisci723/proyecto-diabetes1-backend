@@ -153,7 +153,7 @@ class ModelManager:
         }
 
 # Instancia global
-MODEL_PATH = "/home/priscila/Downloads/bolus_estimation_model.pth"  # Ajusta la ruta según sea necesario
+MODEL_PATH = "d:/Taller1/bolus_estimation_model.pth"  # Ajusta la ruta según sea necesario
 model_manager = ModelManager(model_path=MODEL_PATH)
 
 async def startup_event():
