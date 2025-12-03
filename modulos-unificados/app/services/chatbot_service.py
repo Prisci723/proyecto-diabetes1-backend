@@ -1,184 +1,390 @@
 """
-Servicio para el chatbot educativo de diabetes usando Ollama
+Servicio para el chatbot educativo de diabetes usando LangChain + Ollama
 """
 
-import ollama
-import PyPDF2
-from typing import Dict, List, Optional
-import logging
 import os
+import uuid
+import logging
+from typing import Dict, List, Optional
 from pathlib import Path
+
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_ollama import ChatOllama
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain.tools import StructuredTool
 
 logger = logging.getLogger(__name__)
 
 
 class ChatbotManager:
-    """Gestor del chatbot educativo de diabetes"""
+    """Gestor del chatbot educativo de diabetes con agentes"""
     
     def __init__(self):
         self.conversations: Dict[str, List[Dict]] = {}
-        self.pdf_context: str = ""
+        self.pdf_chunks: List[str] = []
+        self.agent_executor: Optional[AgentExecutor] = None
         self.pdf_loaded: bool = False
         self.model_name: str = "llama3.2:3b"
         
-        # Ruta al PDF (ajustar según sea necesario)
-        self.pdf_path = Path("c:/Users/USER/taller/proyecto-diabetes1-backend/documentos/documento_diabetes_guia.pdf")
-
-        self.system_prompt = """Eres un asistente educativo especializado en diabetes.
-
-IMPORTANTE:
-- NO eres médico y NO das diagnósticos médicos
-- Recomienda siempre consultar con profesionales de salud para casos específicos
-- Proporciona información educativa y general
-- Sé empático, claro y amigable
-- Si detectas una emergencia médica, indica buscar atención inmediata
-
-Responde de manera clara y concisa en español."""
-    
-    def load_pdf(self):
-        """Carga el PDF cuando se inicializa el servicio"""
-        # Intentar múltiples ubicaciones posibles
-        possible_paths = [
-            self.pdf_path,
-            Path(__file__).parent.parent / "documents" / "documento_diabetes_guia.pdf",
+        # Configurar rutas posibles del PDF
+        self.possible_pdf_paths = [
+            Path("/home/priscila/Datos/Documentos Universidad/Ingeniería en Ciencias de la Computación/8 Octavo semestre/SHC134 Taller De Especialidad/proyecto_modulos/documentos/documento_diabetes_guia.pdf"),
+            Path("c:/Users/USER/taller/proyecto-diabetes1-backend/documentos/documento_diabetes_guia.pdf"),
+            Path(__file__).parent.parent / "documentos" / "documento_diabetes_guia.pdf",
             Path(__file__).parent.parent / "data" / "documento_diabetes_guia.pdf",
         ]
+    
+    def es_pregunta_sobre_diabetes(self, pregunta: str) -> bool:
+        """
+        Verifica si una pregunta está relacionada con diabetes tipo 1.
+        """
+        pregunta_lower = pregunta.lower()
         
+        keywords_diabetes = [
+            # Enfermedad
+            'diabetes', 'diabético', 'diabética', 'diabéticos', 'diabéticas',
+            'prediabetes', 'hiperglucemia', 'hipoglucemia', 'hiperglucemias', 'hipoglucemias',
+
+            # Sustancias y mediciones
+            'glucosa', 'glucosas', 'azúcar', 'azucares', 'azucar', 'insulina', 'insulinas',
+            'carbohidrato', 'carbohidratos', 'carb', 'carbs', 'ketona', 'cetona', 'cetonas',
+            'hba1c', 'hemoglobina', 'hemoglobinas', 'hemoglobina glicosilada',
+
+            # Equipos médicos
+            'glucómetro', 'glucometro', 'glucómetros', 'glucometros',
+            'sensor', 'sensores',
+            'bomba', 'bombas', 'bomba de insulina', 'bombas de insulina',
+            'monitor', 'monitores', 'monitoreo', 'monitorización',
+
+            # Órganos y especialistas
+            'páncreas', 'pancreas', 'endocrinólogo', 'endocrinologa',
+            'endocrinólogos', 'endocrinólogas', 'endocrino', 'endocrinos',
+
+            # Condición clínica
+            'cetoacidosis', 'cetoacidosis diabética',
+            'resistencia a la insulina',
+
+            # Tipos de diabetes
+            'tipo 1', 'tipo I', 't1d', 't1', 'diabetes tipo 1',
+            'tipo 2', 'tipo II', 't2d', 't2', 'diabetes tipo 2',
+            'gestacional', 'diabetes gestacional',
+            'autoimmune', 'autoinmune',
+
+            # Alimentación y comidas
+            'desayuno', 'desayunos',
+            'almuerzo', 'almuerzos',
+            'comida', 'comidas',
+            'cena', 'cenas',
+            'alimentación', 'alimentaciones',
+            'dieta', 'dietas',
+            'nutrición', 'nutricional', 'nutricion',
+            'hidrato', 'hidratos',
+            'snack', 'snacks',
+
+            # Actividad física
+            'ejercicio', 'ejercicios',
+            'deporte', 'deportes',
+            'actividad física', 'actividades físicas',
+
+            # Manejo y tratamiento
+            'tratamiento', 'tratamientos',
+            'control', 'controles',
+            'dosis', 'dosis (plural igual)',
+            'inyección', 'inyectarse', 'inyecciones',
+            'aplicación de insulina', 'bolo', 'basal',
+            'cronómetro', 'registro', 'diario de glucosa',
+
+            # Síntomas
+            'síntoma', 'síntomas', 'sintoma', 'sintomas',
+            'dolor', 'dolores',
+            'sed', 'mucha sed', 'polidipsia',
+            'hambre', 'mucha hambre', 'polifagia',
+            'cansancio', 'fatiga', 'agotamiento',
+            'visión', 'visiones', 'visión borrosa',
+            'orina', 'orinar', 'orinas', 'poliuria',
+            'náusea', 'náuseas', 'nausea', 'nauseas',
+            'vómito', 'vómitos', 'vomito', 'vomitos',
+            'pérdida de peso', 'perdida de peso',
+
+            # Otros términos médicos
+            'glucógeno', 'glucogeno',
+            'metabolismo', 'metabólico', 'metabolico',
+            'glucagón', 'glucagon',
+            'insulinoresistencia', 'hipo', 'hiper',
+
+            #
+            'recomendar', 'recomendarías', 'recomiendas', 'sugerir', 'sugieres',
+            'complicación', 'complicaciones'
+        ]
+
+        
+        keywords_prohibidas = [
+            # PROGRAMACIÓN Y CÓDIGO
+            'python', 'java', 'javascript', 'código', 'codigo',
+            'programar', 'programación', 'programacion',
+            'script', 'scripts', 'programador', 'programadora',
+            'desarrollador', 'desarrolladora', 'desarrolladores',
+            'computadora', 'ordenador', 'algoritmo', 'algoritmos',
+            'variable', 'variables', 'función', 'funciones',
+            'sintaxis', 'backend', 'frontend',
+
+            # MATEMÁTICA
+            'sumar', 'restar', 'multiplicar', 'dividir',
+            'suma', 'resta', 'multiplicación', 'division',
+            'cálculo', 'calculo', 'matemática', 'matematicas',
+
+            # DEPORTES
+            'fútbol', 'futbol', 'mundial', 'partido', 'equipo',
+            'jugador', 'jugadores', 'champions', 'liga', 'gol', 'cancha',
+
+            # CINE / SERIES / MÚSICA
+            'película', 'peliculas', 'pelicula',
+            'serie', 'series',
+            'música', 'musica', 'canción', 'cancion', 'canciones',
+            'actor', 'actores', 'actriz', 'actrices',
+            'banda sonora',
+
+            # POLÍTICA
+            'política', 'politica', 'político', 'politico', 'políticos',
+            'elecciones', 'elección', 'presidente', 'gobierno',
+            'senado', 'diputado', 'ley', 'campaña',
+
+            # HISTORIA / GUERRA
+            'historia', 'historias',
+            'guerra', 'guerras',
+            'batalla', 'batallas',
+            'revolución', 'revoluciones',
+            'imperio', 'imperios'
+        ]
+
+        
+        if any(keyword in pregunta_lower for keyword in keywords_prohibidas):
+            return False
+        
+        if any(keyword in pregunta_lower for keyword in keywords_diabetes):
+            return True
+        
+        palabras_alimentacion = ['desayuno', 'almuerzo', 'cena', 'merienda', 'comida', 'alimento', 'comer']
+        if any(palabra in pregunta_lower for palabra in palabras_alimentacion):
+            return True
+        
+        return False
+    
+    def buscar_en_pdf(self, query: str) -> str:
+        """Busca fragmentos relevantes del PDF usando coincidencia de palabras clave."""
+        if not self.pdf_chunks:
+            return "El PDF no está cargado."
+
+        query_words = [word.lower() for word in query.split() if len(word) > 2]
+        scored = []
+
+        for chunk in self.pdf_chunks:
+            chunk_lower = chunk.lower()
+            matches = sum(1 for word in query_words if word in chunk_lower)
+            if matches > 0:
+                score = matches / max(1, len(query_words))
+                scored.append((score, chunk))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top_chunks = [chunk for score, chunk in scored[:5]]
+
+        if not top_chunks:
+            return "No encontré información relevante en el PDF para esta pregunta."
+
+        return "Información relevante del PDF:\n\n" + "\n\n---\n\n".join(top_chunks)
+    
+    def load_pdf(self):
+        """Carga el PDF y crea los chunks"""
         pdf_found = None
-        for path in possible_paths:
+        for path in self.possible_pdf_paths:
             if path.exists():
                 pdf_found = path
                 break
         
         if not pdf_found:
-            logger.warning(
-                f"⚠️  No se encontró el archivo PDF en las ubicaciones esperadas. "
-                f"El chatbot funcionará sin contexto del documento."
-            )
+            logger.warning("⚠️  No se encontró el PDF. El bot funcionará sin documento de referencia.")
             return False
         
         try:
             logger.info(f"📄 Cargando PDF: {pdf_found}")
-            with open(pdf_found, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
-                text_parts = []
-                
-                for page_num, page in enumerate(pdf_reader.pages):
-                    try:
-                        page_text = page.extract_text()
-                        if page_text.strip():
-                            text_parts.append(f"[Página {page_num + 1}]\n{page_text}")
-                    except Exception as e:
-                        logger.warning(f"Error en página {page_num + 1}: {e}")
-                
-                self.pdf_context = "\n\n".join(text_parts)
-                
-                if self.pdf_context.strip():
-                    self.pdf_loaded = True
-                    logger.info(f"✅ PDF cargado exitosamente")
-                    logger.info(f"   📊 Total páginas: {len(pdf_reader.pages)}")
-                    logger.info(f"   📝 Caracteres extraídos: {len(self.pdf_context)}")
-                    return True
-                else:
-                    logger.warning("⚠️  El PDF no contiene texto extraíble")
-                    return False
-                    
+            loader = PyPDFLoader(str(pdf_found))
+            docs = loader.load()
+
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000, 
+                chunk_overlap=200,
+                separators=["\n\n", "\n", ". ", " ", ""]
+            )
+            chunks_docs = splitter.split_documents(docs)
+            self.pdf_chunks = [doc.page_content for doc in chunks_docs]
+
+            logger.info(f"✅ PDF cargado: {len(self.pdf_chunks)} fragmentos")
+            self.pdf_loaded = True
+            return True
+            
         except Exception as e:
-            logger.error(f"❌ Error al cargar PDF: {e}")
+            logger.error(f"❌ Error al cargar PDF: {str(e)}")
+            self.pdf_loaded = False
             return False
     
-    def create_context_prompt(self, user_message: str) -> str:
-        """Crea el prompt con contexto del PDF"""
-        if self.pdf_context:
-            # Limitar contexto para no sobrepasar límites de tokens
-            max_context = 6000  # caracteres
-            context = self.pdf_context[:max_context]
+    def initialize_agent(self):
+        """Inicializa el agente con LangChain"""
+        try:
+            # Crear herramienta de búsqueda
+            search_tool = StructuredTool.from_function(
+                func=self.buscar_en_pdf,
+                name="buscar_informacion_diabetes",
+                description="Busca y devuelve solo los fragmentos relevantes del PDF oficial sobre diabetes tipo 1."
+            )
             
-            if len(self.pdf_context) > max_context:
-                context += "\n...(documento continúa)..."
+            # Crear modelo LLM
+            llm = ChatOllama(
+                model=self.model_name,
+                temperature=0.3,
+                num_ctx=32768,
+                repeat_penalty=1.1,
+                top_p=0.9
+            )
+            logger.info(f"✅ Modelo {self.model_name} conectado")
             
-            return f"""{self.system_prompt}
+            # Crear prompt del agente
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", """Eres DiaBot, un asistente especializado ÚNICAMENTE en diabetes tipo 1.
 
-DOCUMENTACIÓN DE REFERENCIA:
-{context}
+ANÁLISIS DE RELEVANCIA - Responde SOLO si la pregunta está relacionada con:
+✅ Diabetes tipo 1 directamente
+✅ Glucosa, insulina, monitoreo glucémico
+✅ Alimentación para diabéticos (dietas, carbohidratos, índice glucémico)
+✅ Ejercicio y diabetes
+✅ Hipoglucemia o hiperglucemia
+✅ Complicaciones de diabetes tipo 1
+✅ Manejo diario, conteo de carbohidratos, dosis de insulina
+✅ Tecnología para diabetes (bombas, sensores, glucómetros)
+✅ Síntomas, diagnóstico, tratamiento de diabetes tipo 1
 
-Utiliza la información de la documentación anterior cuando sea relevante para responder la pregunta del usuario. Si la información no está en el documento, complementa con tu conocimiento general sobre diabetes."""
-        
-        return self.system_prompt
+❌ NO respondas preguntas sobre:
+- Programación, matemáticas, ciencia general
+- Otros tipos de diabetes (tipo 2, gestacional) a menos que se compare con tipo 1
+- Temas médicos no relacionados con diabetes
+- Entretenimiento, cultura, tecnología no relacionada con diabetes
+
+REGLAS ESTRICTAS:
+1. Si la pregunta NO está relacionada con diabetes tipo 1:
+   → Responde EXACTAMENTE: "Lo siento, solo puedo ayudarte con temas de diabetes tipo 1. ¿En qué relacionado con tu diabetes te puedo asistir hoy?"
+   → NO uses herramientas
+   → NO intentes responder la pregunta
+
+2. Si SÍ está relacionada con diabetes tipo 1:
+   → Usa la herramienta buscar_informacion_diabetes cuando necesites datos específicos del PDF
+   → Responde de forma clara, empática y basada en evidencia
+   → SIEMPRE verifica que tu respuesta sea correcta
+
+3. Responsabilidad médica:
+   → Nunca des consejos médicos personalizados o dosis específicas
+   → Siempre recomienda consultar al médico tratante para decisiones importantes
+   → Admite cuando no tienes información suficiente
+
+4. Calidad de respuesta:
+   → Verifica que los síntomas y datos sean correctos antes de responder
+   → Si usas la herramienta, asegúrate de que la información del PDF sea relevante
+   → Sé breve pero completo
+
+Responde SIEMPRE en español con un tono profesional, empático y educativo."""),
+                MessagesPlaceholder("chat_history"),
+                ("human", "{input}"),
+                MessagesPlaceholder("agent_scratchpad"),
+            ])
+            
+            # Crear agente
+            agent = create_tool_calling_agent(llm, [search_tool], prompt)
+            self.agent_executor = AgentExecutor(
+                agent=agent, 
+                tools=[search_tool], 
+                handle_parsing_errors=True,
+                verbose=True,
+                max_iterations=3,
+                early_stopping_method="force"
+            )
+            
+            logger.info("✅ Agente inicializado correctamente")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error al inicializar agente: {str(e)}")
+            return False
     
     async def process_message(self, message: str, conversation_id: str) -> str:
         """
         Procesa un mensaje del usuario y genera respuesta
-        
-        Args:
-            message: Mensaje del usuario
-            conversation_id: ID de la conversación
-        
-        Returns:
-            Respuesta del chatbot
         """
+        if self.agent_executor is None:
+            raise Exception("Agente no inicializado")
+        
+        # Pre-validación
+        if not self.es_pregunta_sobre_diabetes(message):
+            logger.info(f"❌ Pregunta rechazada (pre-validación): {message[:50]}...")
+            return "Lo siento, solo puedo ayudarte con temas de diabetes tipo 1. ¿En qué relacionado con tu diabetes te puedo asistir hoy?"
+        
+        # Crear o recuperar conversación
+        if conversation_id not in self.conversations:
+            self.conversations[conversation_id] = []
+        
+        # Construir historial (máx 12 mensajes)
+        chat_history = []
+        for msg in self.conversations[conversation_id][-12:]:
+            if msg["role"] == "user":
+                chat_history.append(HumanMessage(content=msg["content"]))
+            else:
+                chat_history.append(AIMessage(content=msg["content"]))
+        
+        # Mensaje reforzado
+        reinforced_message = f"""RECORDATORIO CRÍTICO ANTES DE RESPONDER:
+- SOLO responde si la pregunta está relacionada con diabetes tipo 1, insulina, glucosa, alimentación para diabéticos, o manejo de la condición.
+- Si NO está relacionado, responde EXACTAMENTE: "Lo siento, solo puedo ayudarte con temas de diabetes tipo 1. ¿En qué relacionado con tu diabetes te puedo asistir hoy?"
+
+Pregunta del usuario: {message}"""
+        
+        # Ejecutar agente
         try:
-            # Inicializar conversación si no existe
-            if conversation_id not in self.conversations:
-                self.conversations[conversation_id] = []
-            
-            # Crear system prompt con contexto
-            system_message = self.create_context_prompt(message)
-            
-            # Preparar mensajes (system + historial + nuevo mensaje)
-            messages = [{"role": "system", "content": system_message}]
-            
-            # Agregar últimos mensajes del historial (máximo 4 mensajes)
-            messages.extend(self.conversations[conversation_id][-4:])
-            
-            # Agregar mensaje actual
-            messages.append({
-                "role": "user",
-                "content": message
+            result = self.agent_executor.invoke({
+                "input": reinforced_message,
+                "chat_history": chat_history
             })
+            response_text = result["output"]
             
-            # Llamar a Ollama
-            response = ollama.chat(
-                model=self.model_name,
-                messages=messages,
-                options={
-                    "temperature": 0.7,
-                    "num_ctx": 8192,  # Contexto grande para incluir el PDF
-                }
-            )
+            # Post-validación
+            forbidden_keywords = [
+                'python', 'programación', 'código', 'suma', 'matemática',
+                'fútbol', 'deporte', 'mundial', 'película', 'música',
+                'política', 'historia', 'geografía'
+            ]
             
-            assistant_message = response['message']['content']
+            response_lower = response_text.lower()
+            is_rejection = "solo puedo ayudarte con temas de diabetes tipo 1" in response_lower
             
-            # Guardar en historial
-            self.conversations[conversation_id].append({
-                "role": "user",
-                "content": message
-            })
-            self.conversations[conversation_id].append({
-                "role": "assistant",
-                "content": assistant_message
-            })
-            
-            # Mantener solo últimos 8 mensajes en historial
-            if len(self.conversations[conversation_id]) > 8:
-                self.conversations[conversation_id] = self.conversations[conversation_id][-8:]
-            
-            return assistant_message
+            if not is_rejection and any(keyword in response_lower for keyword in forbidden_keywords):
+                logger.warning("⚠️ Respuesta fuera de tema detectada. Forzando rechazo.")
+                response_text = "Lo siento, solo puedo ayudarte con temas de diabetes tipo 1. ¿En qué relacionado con tu diabetes te puedo asistir hoy?"
             
         except Exception as e:
-            logger.error(f"Error al procesar mensaje: {e}", exc_info=True)
-            raise
+            logger.error(f"Error en ejecución del agente: {str(e)}")
+            response_text = "Lo siento, tuve un problema al procesar tu mensaje. ¿Podrías reformular tu pregunta?"
+        
+        # Guardar en historial
+        self.conversations[conversation_id].append({"role": "user", "content": message})
+        self.conversations[conversation_id].append({"role": "assistant", "content": response_text})
+        
+        # Limitar historial
+        if len(self.conversations[conversation_id]) > 40:
+            self.conversations[conversation_id] = self.conversations[conversation_id][-40:]
+        
+        return response_text
     
     def reset_conversation(self, conversation_id: str) -> bool:
-        """
-        Reinicia una conversación
-        
-        Args:
-            conversation_id: ID de la conversación
-        
-        Returns:
-            True si se encontró y eliminó, False si no existe
-        """
+        """Reinicia una conversación"""
         if conversation_id in self.conversations:
             del self.conversations[conversation_id]
             return True
@@ -187,24 +393,25 @@ Utiliza la información de la documentación anterior cuando sea relevante para 
     def get_health_status(self) -> dict:
         """Retorna el estado del servicio"""
         return {
-            "status": "online",
+            "status": "online" if self.agent_executor is not None else "loading",
             "model": self.model_name,
             "pdf_loaded": self.pdf_loaded,
-            "pdf_size": len(self.pdf_context),
+            "pdf_chunks": len(self.pdf_chunks),
             "active_conversations": len(self.conversations)
         }
 
 
-# Instancia global del gestor del chatbot
+# Instancia global
 chatbot_manager = ChatbotManager()
 
 
 async def chatbot_startup_event():
-    """Evento de startup para cargar el PDF del chatbot"""
+    """Evento de startup para inicializar el chatbot"""
     try:
         logger.info("📚 Iniciando servicio de chatbot...")
         chatbot_manager.load_pdf()
-        logger.info("✓ Servicio de chatbot listo")
+        chatbot_manager.initialize_agent()
+        logger.info("✅ Servicio de chatbot listo")
     except Exception as e:
-        logger.error(f"Error al inicializar chatbot: {e}")
-        # No lanzar excepción para permitir que el servidor inicie
+        logger.error(f"❌ Error al inicializar chatbot: {e}")
+        raise

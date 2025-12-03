@@ -353,7 +353,7 @@ function displaySummaryCards(summary) {
     const trendElement = document.getElementById('trend');
     trendElement.textContent = summary.trend === 'ascendente' ? '↗️ Subiendo' : '↘️ Bajando';
     trendElement.style.color = summary.trend === 'ascendente' ? '#f59e0b' : '#10b981';
-}
+}00A79D
 
 function displayAlerts(alerts) {
     const container = document.getElementById('alertsContainer');
