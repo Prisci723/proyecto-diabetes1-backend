@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL (principal)
+  postgres:
+    image: postgres:15-alpine
+    container_name: diabetes-postgres
+    environment:
+      POSTGRES_USER: diabetes_user
+      POSTGRES_PASSWORD: diabetes_password
+      POSTGRES_DB: glucose_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./app/init_glucose.sql:/docker-entrypoint-initdb.d/01_init_glucose.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U diabetes_user -d glucose_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - diabetes-network
+
+  # Base de datos MySQL (alimentos)
+  mysql:
+    image: mysql:8.0
+    container_name: diabetes-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: alimentos_db
+      MYSQL_USER: alimentos_user
+      MYSQL_PASSWORD: alimentos_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./app/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./app/agregar_datos.sql:/docker-entrypoint-initdb.d/02_agregar_datos.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - diabetes-network
+
+  # API FastAPI
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: diabetes-api
+    environment:
+      # PostgreSQL
+      DATABASE_URL: postgresql://diabetes_user:diabetes_password@postgres:5432/glucose_db
+      
+      # MySQL
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: alimentos_user
+      MYSQL_PASSWORD: alimentos_password
+      MYSQL_DATABASE: alimentos_db
+      
+      # Ollama (opcional - descomentar si tienes servidor Ollama)
+      # OLLAMA_HOST: http://host.docker.internal:11434
+      
+      # Aplicación
+      API_PORT: 8000
+      DEBUG: "False"
+      SECRET_KEY: "change-this-secret-key-in-production"
+      
+      # CORS
+      ALLOWED_ORIGINS: "*"
+      CORS_ENABLED: "True"
+    ports:
+      - "8000:8000"
+    volumes:
+      # Montar directorio de documentos del chatbot
+      - ./app/documents:/app/documents
+      # Opcional: montar código para desarrollo hot-reload
+      # - ./app:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    networks:
+      - diabetes-network
+    restart: unless-stopped
+
+  # Ollama (opcional - descomentar si necesitas el chatbot con LLM local)
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: diabetes-ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   networks:
+  #     - diabetes-network
+  #   restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  mysql_data:
+    driver: local
+  # ollama_data:
+  #   driver: local
+
+networks:
+  diabetes-network:
+    driver: bridge

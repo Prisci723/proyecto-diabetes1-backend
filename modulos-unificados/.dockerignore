@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Documentación
+*.md
+README*
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Archivos SQL de desarrollo
+*.sql
+!init*.sql
+
+# Logs
+*.log
+
+# Modelos pre-entrenados grandes (opcional, si los cargas desde otro lugar)
+# *.pth
+# *.pkl
+
+# Tests
+tests/
+test_*.py
+*_test.py
