@@ -13,8 +13,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-from langchain.tools import StructuredTool
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +23,8 @@ class ChatbotManager:
     def __init__(self):
         self.conversations: Dict[str, List[Dict]] = {}
         self.pdf_chunks: List[str] = []
-        self.agent_executor: Optional[AgentExecutor] = None
+        self.llm: Optional[ChatOllama] = None
+        self.chain = None
         self.pdf_loaded: bool = False
         self.model_name: str = "llama3.2:3b"
         
@@ -234,17 +233,10 @@ class ChatbotManager:
             return False
     
     def initialize_agent(self):
-        """Inicializa el agente con LangChain"""
+        """Inicializa el chatbot con LangChain"""
         try:
-            # Crear herramienta de búsqueda
-            search_tool = StructuredTool.from_function(
-                func=self.buscar_en_pdf,
-                name="buscar_informacion_diabetes",
-                description="Busca y devuelve solo los fragmentos relevantes del PDF oficial sobre diabetes tipo 1."
-            )
-            
             # Crear modelo LLM
-            llm = ChatOllama(
+            self.llm = ChatOllama(
                 model=self.model_name,
                 temperature=0.3,
                 num_ctx=32768,
@@ -253,8 +245,8 @@ class ChatbotManager:
             )
             logger.info(f"✅ Modelo {self.model_name} conectado")
             
-            # Crear prompt del agente
-            prompt = ChatPromptTemplate.from_messages([
+            # Crear prompt del chatbot
+            self.prompt = ChatPromptTemplate.from_messages([
                 ("system", """Eres DiaBot, un asistente especializado ÚNICAMENTE en diabetes tipo 1.
 
 ANÁLISIS DE RELEVANCIA - Responde SOLO si la pregunta está relacionada con:
@@ -277,54 +269,39 @@ ANÁLISIS DE RELEVANCIA - Responde SOLO si la pregunta está relacionada con:
 REGLAS ESTRICTAS:
 1. Si la pregunta NO está relacionada con diabetes tipo 1:
    → Responde EXACTAMENTE: "Lo siento, solo puedo ayudarte con temas de diabetes tipo 1. ¿En qué relacionado con tu diabetes te puedo asistir hoy?"
-   → NO uses herramientas
-   → NO intentes responder la pregunta
 
 2. Si SÍ está relacionada con diabetes tipo 1:
-   → Usa la herramienta buscar_informacion_diabetes cuando necesites datos específicos del PDF
    → Responde de forma clara, empática y basada en evidencia
-   → SIEMPRE verifica que tu respuesta sea correcta
+   → Usa la información del contexto proporcionado cuando esté disponible
 
 3. Responsabilidad médica:
    → Nunca des consejos médicos personalizados o dosis específicas
    → Siempre recomienda consultar al médico tratante para decisiones importantes
    → Admite cuando no tienes información suficiente
 
-4. Calidad de respuesta:
-   → Verifica que los síntomas y datos sean correctos antes de responder
-   → Si usas la herramienta, asegúrate de que la información del PDF sea relevante
-   → Sé breve pero completo
+Responde SIEMPRE en español con un tono profesional, empático y educativo.
 
-Responde SIEMPRE en español con un tono profesional, empático y educativo."""),
+{context}"""),
                 MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-                MessagesPlaceholder("agent_scratchpad"),
+                ("human", "{input}")
             ])
             
-            # Crear agente
-            agent = create_tool_calling_agent(llm, [search_tool], prompt)
-            self.agent_executor = AgentExecutor(
-                agent=agent, 
-                tools=[search_tool], 
-                handle_parsing_errors=True,
-                verbose=True,
-                max_iterations=3,
-                early_stopping_method="force"
-            )
+            # Crear chain
+            self.chain = self.prompt | self.llm
             
-            logger.info("✅ Agente inicializado correctamente")
+            logger.info("✅ Chatbot inicializado correctamente")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Error al inicializar agente: {str(e)}")
+            logger.error(f"❌ Error al inicializar chatbot: {str(e)}")
             return False
     
     async def process_message(self, message: str, conversation_id: str) -> str:
         """
         Procesa un mensaje del usuario y genera respuesta
         """
-        if self.agent_executor is None:
-            raise Exception("Agente no inicializado")
+        if self.llm is None:
+            raise Exception("Chatbot no inicializado")
         
         # Pre-validación
         if not self.es_pregunta_sobre_diabetes(message):
@@ -343,20 +320,25 @@ Responde SIEMPRE en español con un tono profesional, empático y educativo.""")
             else:
                 chat_history.append(AIMessage(content=msg["content"]))
         
-        # Mensaje reforzado
-        reinforced_message = f"""RECORDATORIO CRÍTICO ANTES DE RESPONDER:
-- SOLO responde si la pregunta está relacionada con diabetes tipo 1, insulina, glucosa, alimentación para diabéticos, o manejo de la condición.
-- Si NO está relacionado, responde EXACTAMENTE: "Lo siento, solo puedo ayudarte con temas de diabetes tipo 1. ¿En qué relacionado con tu diabetes te puedo asistir hoy?"
-
-Pregunta del usuario: {message}"""
+        # Buscar información relevante del PDF
+        context = ""
+        if self.pdf_loaded:
+            pdf_info = self.buscar_en_pdf(message)
+            context = f"\n\nInformación del documento:\n{pdf_info}\n"
         
-        # Ejecutar agente
+        # Ejecutar chain
         try:
-            result = self.agent_executor.invoke({
-                "input": reinforced_message,
-                "chat_history": chat_history
+            result = self.chain.invoke({
+                "input": message,
+                "chat_history": chat_history,
+                "context": context
             })
-            response_text = result["output"]
+            
+            # Extraer contenido de la respuesta
+            if hasattr(result, 'content'):
+                response_text = result.content
+            else:
+                response_text = str(result)
             
             # Post-validación
             forbidden_keywords = [
@@ -373,7 +355,7 @@ Pregunta del usuario: {message}"""
                 response_text = "Lo siento, solo puedo ayudarte con temas de diabetes tipo 1. ¿En qué relacionado con tu diabetes te puedo asistir hoy?"
             
         except Exception as e:
-            logger.error(f"Error en ejecución del agente: {str(e)}")
+            logger.error(f"Error en ejecución del chatbot: {str(e)}")
             response_text = "Lo siento, tuve un problema al procesar tu mensaje. ¿Podrías reformular tu pregunta?"
         
         # Guardar en historial
@@ -396,7 +378,7 @@ Pregunta del usuario: {message}"""
     def get_health_status(self) -> dict:
         """Retorna el estado del servicio"""
         return {
-            "status": "online" if self.agent_executor is not None else "loading",
+            "status": "online" if self.llm is not None else "loading",
             "model": self.model_name,
             "pdf_loaded": self.pdf_loaded,
             "pdf_chunks": len(self.pdf_chunks),
