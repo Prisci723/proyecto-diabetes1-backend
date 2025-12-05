@@ -2,7 +2,7 @@
 FROM python:3.11-slim
 
 # Establecer directorio de trabajo
-WORKDIR /app
+WORKDIR /code
 
 # Variables de entorno para Python
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -25,11 +25,11 @@ COPY app/requirements.txt .
 # Instalar dependencias de Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código de la aplicación
-COPY app/ /app/
+# Copiar el código de la aplicación manteniendo la estructura
+COPY app/ /code/app/
 
 # Crear directorio para documentos del chatbot si no existe
-RUN mkdir -p /app/documents
+RUN mkdir -p /code/app/documents
 
 # Exponer el puerto de la aplicación
 EXPOSE 8000
