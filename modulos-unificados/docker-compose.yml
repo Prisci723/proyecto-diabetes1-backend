@@ -50,17 +50,20 @@ services:
       dockerfile: Dockerfile
     container_name: diabetes-api
     environment:
-      # PostgreSQL
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: super123
+      # PostgreSQL - Debe coincidir con la configuración del servicio postgres
+      DATABASE_URL: postgresql://diabetes_user:diabetes_password@postgres:5432/glucose_db
+      POSTGRES_USER: diabetes_user
+      POSTGRES_PASSWORD: diabetes_password
       POSTGRES_DB: glucose_db
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
       
       # MySQL
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_USER: alimentos_user
-      MYSQL_PASSWORD: alimentos_password
-      MYSQL_DATABASE: alimentos_db
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: app_password
+      MYSQL_DATABASE: alimentos
       
       # Ollama (opcional - descomentar si tienes servidor Ollama)
       OLLAMA_HOST: http://host.docker.internal:11434
