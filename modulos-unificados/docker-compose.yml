@@ -58,11 +58,11 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       
-      # MySQL
+      # MySQL - Debe coincidir con la configuración del servicio mysql
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_USER: app_user
-      MYSQL_PASSWORD: app_password
+      MYSQL_USER: root
+      MYSQL_PASSWORD: rootpassword
       MYSQL_DATABASE: alimentos
       
       # Ollama (opcional - descomentar si tienes servidor Ollama)

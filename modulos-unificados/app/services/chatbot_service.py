@@ -30,10 +30,9 @@ class ChatbotManager:
         
         # Configurar rutas posibles del PDF
         self.possible_pdf_paths = [
-            Path("/home/priscila/Datos/Documentos Universidad/Ingeniería en Ciencias de la Computación/8 Octavo semestre/SHC134 Taller De Especialidad/proyecto_modulos/documentos/documento_diabetes_guia.pdf"),
-            Path("c:/Users/USER/taller/proyecto-diabetes1-backend/documentos/documento_diabetes_guia.pdf"),
-            Path(__file__).parent.parent / "documentos" / "documento_diabetes_guia.pdf",
-            Path(__file__).parent.parent / "data" / "documento_diabetes_guia.pdf",
+            Path(__file__).parent.parent / "documents" / "documento_diabetes_guia.pdf",
+            Path("/app/documents/documento_diabetes_guia.pdf"),
+            Path("documents/documento_diabetes_guia.pdf"),
         ]
     
     def es_pregunta_sobre_diabetes(self, pregunta: str) -> bool:
