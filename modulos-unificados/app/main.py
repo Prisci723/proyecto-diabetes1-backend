@@ -6,6 +6,7 @@ API completa para monitoreo de diabetes tipo 1
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import uvicorn
 from datetime import datetime
 import logging
@@ -67,10 +68,10 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
+        # "http://localhost:3000",
+        # "http://localhost:5173",
+        # "http://127.0.0.1:3000",
+        # "http://127.0.0.1:5173",
         "*"  # En producción, especificar dominios permitidos
     ],
     allow_credentials=True,
@@ -331,22 +332,28 @@ async def shutdown_event():
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
     """Handler personalizado para 404"""
-    return {
-        "error": "Recurso no encontrado",
-        "detail": str(exc.detail) if hasattr(exc, 'detail') else "El recurso solicitado no existe",
-        "path": str(request.url)
-    }
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": "Recurso no encontrado",
+            "detail": str(exc.detail) if hasattr(exc, 'detail') else "El recurso solicitado no existe",
+            "path": str(request.url)
+        }
+    )
 
 
 @app.exception_handler(500)
 async def internal_error_handler(request, exc):
     """Handler personalizado para errores 500"""
     logger.error(f"Error interno: {exc}")
-    return {
-        "error": "Error interno del servidor",
-        "detail": "Ha ocurrido un error inesperado. Por favor contacte al administrador.",
-        "path": str(request.url)
-    }
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Error interno del servidor",
+            "detail": "Ha ocurrido un error inesperado. Por favor contacte al administrador.",
+            "path": str(request.url)
+        }
+    )
 
 
 # ==================== MAIN ====================

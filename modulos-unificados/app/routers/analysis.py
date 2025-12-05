@@ -160,14 +160,37 @@ def get_patient_analysis(
             if len(values) >= 10:  # Mínimo de lecturas por día
                 day_metrics = metrics_calculator.calculate_daily_metrics(values)
                 
-                db_metrics = DailyMetrics(
-                    patient_id=patient_id,
-                    date=datetime.combine(day, datetime.min.time()),
-                    **day_metrics,
-                    created_at=datetime.utcnow()
-                )
-                db.add(db_metrics)
-                calculated_metrics.append(db_metrics)
+                # Filtrar solo las columnas que existen en DailyMetrics
+                db_columns = {
+                    'mean_glucose', 'std_glucose', 'cv', 'tir', 'tbr', 
+                    'tbr_severe', 'tar', 'tar_severe', 'gmi', 'glucose_range', 'n_readings'
+                }
+                filtered_metrics = {k: v for k, v in day_metrics.items() if k in db_columns}
+                
+                day_datetime = datetime.combine(day, datetime.min.time())
+                
+                # Verificar si ya existen métricas para este día
+                existing_metric = db.query(DailyMetrics).filter(
+                    DailyMetrics.patient_id == patient_id,
+                    DailyMetrics.date == day_datetime
+                ).first()
+                
+                if existing_metric:
+                    # Actualizar métricas existentes
+                    for key, value in filtered_metrics.items():
+                        setattr(existing_metric, key, value)
+                    existing_metric.created_at = datetime.utcnow()
+                    calculated_metrics.append(existing_metric)
+                else:
+                    # Crear nuevas métricas
+                    db_metrics = DailyMetrics(
+                        patient_id=patient_id,
+                        date=day_datetime,
+                        **filtered_metrics,
+                        created_at=datetime.utcnow()
+                    )
+                    db.add(db_metrics)
+                    calculated_metrics.append(db_metrics)
         
         db.commit()
         

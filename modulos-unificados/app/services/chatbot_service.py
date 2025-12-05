@@ -43,6 +43,7 @@ class ChatbotManager:
         """
         pregunta_lower = pregunta.lower()
         
+        # Palabras clave relacionadas con diabetes y alimentación para diabéticos
         keywords_diabetes = [
             # Enfermedad
             'diabetes', 'diabético', 'diabética', 'diabéticos', 'diabéticas',
@@ -83,10 +84,13 @@ class ChatbotManager:
             'nutrición', 'nutricional', 'nutricion',
             'hidrato', 'hidratos',
             'snack', 'snacks',
+            'alimento', 'alimentos',
+            'comer', 'comiendo',
+            'menú', 'menu', 'menus',
+            'receta', 'recetas',
 
             # Actividad física
             'ejercicio', 'ejercicios',
-            'deporte', 'deportes',
             'actividad física', 'actividades físicas',
 
             # Manejo y tratamiento
@@ -115,63 +119,62 @@ class ChatbotManager:
             'glucagón', 'glucagon',
             'insulinoresistencia', 'hipo', 'hiper',
 
-            #
+            # Recomendaciones
             'recomendar', 'recomendarías', 'recomiendas', 'sugerir', 'sugieres',
-            'complicación', 'complicaciones'
+            'complicación', 'complicaciones',
+            'ayudar', 'ayuda', 'ayudame', 'ayúdame'
         ]
 
-        
+        # Palabras prohibidas MUY ESPECÍFICAS que indican claramente temas NO relacionados
         keywords_prohibidas = [
             # PROGRAMACIÓN Y CÓDIGO
-            'python', 'java', 'javascript', 'código', 'codigo',
-            'programar', 'programación', 'programacion',
-            'script', 'scripts', 'programador', 'programadora',
-            'desarrollador', 'desarrolladora', 'desarrolladores',
-            'computadora', 'ordenador', 'algoritmo', 'algoritmos',
-            'variable', 'variables', 'función', 'funciones',
-            'sintaxis', 'backend', 'frontend',
+            'python', 'java', 'javascript', 'código fuente', 'programar un',
+            'script de', 'algoritmo de búsqueda', 'función lambda',
+            'sintaxis de', 'backend api', 'frontend react',
 
-            # MATEMÁTICA
-            'sumar', 'restar', 'multiplicar', 'dividir',
-            'suma', 'resta', 'multiplicación', 'division',
-            'cálculo', 'calculo', 'matemática', 'matematicas',
+            # MATEMÁTICA PURA
+            'ecuación diferencial', 'integral definida', 'derivada parcial',
+            'teorema de', 'demostración matemática',
 
-            # DEPORTES
-            'fútbol', 'futbol', 'mundial', 'partido', 'equipo',
-            'jugador', 'jugadores', 'champions', 'liga', 'gol', 'cancha',
+            # DEPORTES PROFESIONALES
+            'champions league', 'copa mundial', 'liga española',
+            'gol de messi', 'partido de fútbol',
 
             # CINE / SERIES / MÚSICA
-            'película', 'peliculas', 'pelicula',
-            'serie', 'series',
-            'música', 'musica', 'canción', 'cancion', 'canciones',
-            'actor', 'actores', 'actriz', 'actrices',
-            'banda sonora',
+            'película de marvel', 'serie de netflix',
+            'canción de', 'álbum de',
 
             # POLÍTICA
-            'política', 'politica', 'político', 'politico', 'políticos',
-            'elecciones', 'elección', 'presidente', 'gobierno',
-            'senado', 'diputado', 'ley', 'campaña',
+            'elecciones presidenciales', 'partido político',
+            'congreso nacional', 'senado de',
 
             # HISTORIA / GUERRA
-            'historia', 'historias',
-            'guerra', 'guerras',
-            'batalla', 'batallas',
-            'revolución', 'revoluciones',
-            'imperio', 'imperios'
+            'segunda guerra mundial', 'revolución francesa',
+            'batalla de', 'imperio romano'
         ]
 
-        
-        if any(keyword in pregunta_lower for keyword in keywords_prohibidas):
-            return False
-        
+        # PRIMERO: Verificar si tiene palabras clave de diabetes (PRIORIDAD ALTA)
         if any(keyword in pregunta_lower for keyword in keywords_diabetes):
+            # Si tiene palabras de diabetes, verificar que NO sea un tema prohibido MUY ESPECÍFICO
+            if not any(keyword in pregunta_lower for keyword in keywords_prohibidas):
+                return True
+        
+        # SEGUNDO: Verificar contexto de alimentación para diabéticos
+        palabras_alimentacion = ['desayuno', 'almuerzo', 'cena', 'merienda', 'comida', 'alimento', 'comer', 'menú', 'receta']
+        palabras_contexto_diabetes = ['diabético', 'diabetes', 'diabéticos', 'diabética', 'glucosa', 'azúcar', 'carbohidrato']
+        
+        tiene_alimentacion = any(palabra in pregunta_lower for palabra in palabras_alimentacion)
+        tiene_contexto_diabetes = any(palabra in pregunta_lower for palabra in palabras_contexto_diabetes)
+        
+        # Si menciona alimentación Y diabetes en la misma pregunta, es válido
+        if tiene_alimentacion and tiene_contexto_diabetes:
             return True
         
-        palabras_alimentacion = ['desayuno', 'almuerzo', 'cena', 'merienda', 'comida', 'alimento', 'comer']
-        if any(palabra in pregunta_lower for palabra in palabras_alimentacion):
+        # Si menciona "ayudar" o "recomendar" junto con alimentación, asumir contexto diabético
+        if tiene_alimentacion and any(palabra in pregunta_lower for palabra in ['ayudar', 'ayuda', 'recomendar', 'sugerir']):
             return True
         
-        return False
+        return True
     
     def buscar_en_pdf(self, query: str) -> str:
         """Busca fragmentos relevantes del PDF usando coincidencia de palabras clave."""

@@ -79,7 +79,7 @@ CREATE TABLE glucose_readings (
         REFERENCES patients(id) ON DELETE CASCADE,
     
     -- Constraints
-    CONSTRAINT chk_glucose_value CHECK (value >= 20 AND value <= 600),
+    CONSTRAINT chk_glucose_value CHECK (value >= 2 AND value <= 25),
     CONSTRAINT chk_glucose_timestamp CHECK (timestamp <= CURRENT_TIMESTAMP + INTERVAL '1 hour')
 );
 
