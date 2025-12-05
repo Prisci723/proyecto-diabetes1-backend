@@ -20,7 +20,8 @@ from app.routers import (
     health, 
     glucose_prediction, 
     chatbot, 
-    alimentos
+    alimentos,
+    users
 )
 from app.services.prediction import startup_event as insulin_startup
 from app.services.glucose_prediction import glucose_startup_event
@@ -135,6 +136,14 @@ app.include_router(
     prefix="/alimentos",
     tags=["Food Database"],
     responses={404: {"description": "Alimento no encontrado"}}
+)
+
+# Gestión de usuarios
+app.include_router(
+    users.router,
+    prefix="/users",
+    tags=["Users"],
+    responses={404: {"description": "Usuario no encontrado"}}
 )
 
 # Health checks y utilidades

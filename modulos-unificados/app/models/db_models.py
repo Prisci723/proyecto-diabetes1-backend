@@ -1,5 +1,5 @@
 # app/models/db_models.py
-from sqlalchemy import Column, Integer, Float, String, DateTime
+from sqlalchemy import Column, Integer, Float, String, DateTime, Boolean
 from app.database import Base
 
 class Patient(Base):
@@ -50,3 +50,11 @@ class ClusterAssignment(Base):
     avg_tir = Column(Float)
     avg_cv = Column(Float)
     avg_gmi = Column(Float)
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    formulario_inicio = Column(Boolean, default=False)
+    created_at = Column(DateTime)

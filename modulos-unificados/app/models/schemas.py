@@ -168,3 +168,29 @@ class ResumenCarbohidratos(BaseModel):
     """Modelo para el resumen de carbohidratos totales"""
     alimentos_seleccionados: List[AlimentoSeleccionado]
     total_carbohidratos: float
+# ============================================================================
+# SCHEMAS PARA USUARIOS
+# ============================================================================
+
+class UserCreate(BaseModel):
+    """Schema para crear un nuevo usuario"""
+    username: str = Field(..., min_length=3, max_length=50, description="Nombre de usuario único")
+    password: str = Field(..., min_length=6, description="Contraseña del usuario")
+    formulario_inicio: bool = Field(default=False, description="Indica si completó el formulario inicial")
+
+
+class UserLogin(BaseModel):
+    """Schema para autenticar un usuario"""
+    username: str = Field(..., description="Nombre de usuario")
+    password: str = Field(..., description="Contraseña del usuario")
+
+
+class UserResponse(BaseModel):
+    """Schema para la respuesta de un usuario"""
+    id: int
+    username: str
+    formulario_inicio: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
