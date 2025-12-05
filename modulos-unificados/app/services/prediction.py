@@ -153,8 +153,9 @@ class ModelManager:
         }
 
 # Instancia global
-MODEL_PATH = "d:/Taller1/bolus_estimation_model.pth"  # Ajusta la ruta según sea necesario
-model_manager = ModelManager(model_path=MODEL_PATH)
+from pathlib import Path
+MODEL_PATH = Path(__file__).parent.parent / "documents" / "bolus_estimation_model(1).pth"
+model_manager = ModelManager(model_path=str(MODEL_PATH))
 
 async def startup_event():
     try:

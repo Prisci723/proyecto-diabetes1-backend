@@ -28,10 +28,9 @@ class ClusteringService:
             self.possible_paths = [Path(model_path)]
         else:
             self.possible_paths = [
-                Path("d:/Taller1/glucose_kmeans_model.pkl"),
-                Path("/home/priscila/Datos/Documentos Universidad/Ingeniería en Ciencias de la Computación/8 Octavo semestre/SHC134 Taller De Especialidad/proyecto_modulos/glucose_kmeans_model.pkl"),
-                Path(__file__).parent.parent / "models" / "glucose_kmeans_model.pkl",
-                Path("glucose_kmeans_model.pkl"),
+                Path(__file__).parent.parent / "documents" / "glucose_kmeans_model(1).pkl",
+                Path("app/documents/glucose_kmeans_model(1).pkl"),
+                Path("documents/glucose_kmeans_model(1).pkl"),
             ]
         
         self.model_path = None
